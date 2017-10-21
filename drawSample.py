@@ -6,7 +6,7 @@
 from Tkinter import *
 import _tkinter
 from PIL import Image
-from PIL import ImageTk
+#from PIL import ImageTk
 from PIL import ImageChops
 # import threading,
 import sys,os
@@ -302,6 +302,7 @@ class SelectRect:
         
     def updateLoop(self):
         print "Enter infinite loop updateLoop(). Use a/z"
+
         while 1:
             self.canvas.master.bind('<KeyPress-a>', self.zoomin)
             self.canvas.master.bind('<KeyPress-z>', self.zoomout)
