@@ -43,8 +43,8 @@ maxvertex = 0
 #FIXME CONSTANTS ADDED
 extension_step_size = 10
 num_rrt_iterations = 3000
-x_variance = 220 #fixme #250 is good
-y_variance = 220
+x_variance = 280 #fixme #250 is good
+y_variance = 280
 
 
 def drawGraph(G):
@@ -203,7 +203,6 @@ def rrt_search(G, tx, ty):
     #fixme implement wall hugging?
 
     # Iterate given number of times
-    #for i in range(0, num_rrt_iterations):
     # Step 1: generate random point
     xrand = genPoint()
 
@@ -217,8 +216,8 @@ def rrt_search(G, tx, ty):
     # Step 4: only add it if it is obstacle free
     collision = 0
     for o in obstacles:
-        if lineHitsRect(nearestP, xnew, o):
-        #if inRect(xnew, o, 0.001): #fixme dilation? doesn't work, can skip over a rectangle!
+        #if lineHitsRect(nearestP, xnew, o):
+        if inRect(xnew, o, 0.001): #fixme dilation?
             collision = 1
 
     # Step 5: add it to graph
@@ -227,14 +226,6 @@ def rrt_search(G, tx, ty):
         G[nodes].append(xnewIndex)
         G[edges].append((xnearest, xnewIndex))
 
-    canvas.events()
-    # Step 6: add goal to graph fixme how and where?
-    #xnearest = closestPointToPoint(G, (tx, ty))
-    #nearestP = vertices[xnearest]
-    #xnew = (tx, ty)
-    #xnewIndex = pointToVertex(xnew)
-    #G[nodes].append(xnewIndex)
-    #G[edges].append((xnearest, xnewIndex))
     return
 
 
@@ -261,7 +252,7 @@ if 0:  # line intersection testing fixme was 1
             lineHitsRect(l[0], l[1], o)
     canvas.mainloop()
 
-if 1: #fixme was 0
+if 1: #fixme was 1
     # random obstacle field
     for nobst in range(0, 60): #fixme was 6000
         wall_discretization = SMALLSTEP * 2  # walls are on a regular grid.
@@ -294,53 +285,20 @@ if visualize:
     for o in obstacles: canvas.showRect(o, outline='red', fill='blue')
 
 maxvertex += 1
-if 1:   #fixme was while 1
+G = [[0], []]  # nodes, edges
+vertices = [[10, 270], [20, 280]]
+redraw()
+G[edges].append((0, 1))
+G[nodes].append(1)
+if visualize: canvas.markit(tx, ty, r=SMALLSTEP)
+
+
+while 1:   #fixme was while 1
     # graph G
-    G = [[0], []]  # nodes, edges
-    vertices = [[10, 270], [20, 280]]
-    redraw()
-
-    G[edges].append((0, 1))
-    G[nodes].append(1)
-    if visualize: canvas.markit(tx, ty, r=SMALLSTEP)
 
     drawGraph(G)
-    dist = 100
-    num_rrt_iterations = 0; #fixme change use of variable at start of script
-    while(dist > SMALLSTEP):
-        num_rrt_iterations += 1
-        dist = pointPointDistance(vertices[closestPointToPoint(G, (tx, ty))], (tx, ty))
-        print dist
-        rrt_search(G, tx, ty)
-
-
-    print "search over"
-
-    # ADDITIONAL CODE fixme
-    # retrace shortest path
-
-    xnearest = closestPointToPoint(G, (tx, ty))
-    nearestP = vertices[xnearest]
-    xnew = (tx, ty)
-    xnewIndex = pointToVertex(xnew)
-    G[nodes].append(xnewIndex)
-    G[edges].append((xnearest, xnewIndex))
-
-
-
-    node = len(vertices) - 1
-    start = (start_x, start_y)
-    rrt_path_length = 0
-
-    while(node != 0):
-        print node
-        node = returnParent(node)
-        rrt_path_length += 1
-
-    drawGraph(G)
-    print "rrt_path_size: {} extension_step_size: {}".format(rrt_path_length, extension_step_size)
-    print "total path length: {} shortest path: {}".format(rrt_path_length*extension_step_size, pointPointDistance((start_x, start_y), (tx, ty)))
-    #fixme distance is incorrect since first step is weird and last step too
+    rrt_search(G, tx, ty)
+    canvas.events()
 
 # canvas.showRect(rect,fill='red')
 
