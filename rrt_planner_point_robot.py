@@ -59,7 +59,7 @@ def genPoint():
     # TODO : Function to implement the sampling technique
 
     # --- Unifrom Distribution
-    #x = random.uniform(0, XMAX) #fixme create double
+    #x = random.uniform(0, XMAX)
     #y = random.uniform(0, YMAX)
 
     # --- Gaussian distribution with mean at the goal
@@ -202,10 +202,7 @@ def rrt_search(G, tx, ty):
 
     #fixme implement wall hugging?
 
-    # --- Step 1: initiate graph
-
-    # --- Step 2: loop fixme how long?
-
+    # Iterate given number of times
     for i in range(0, num_rrt_iterations):
         # Step 1: generate random point
         xrand = genPoint()
