@@ -12,7 +12,7 @@ import imageToRects
 
 # display = drawSample.SelectRect(imfile=im2Small,keepcontrol=0,quitLabel="")
 visualize = 1
-prompt_before_next = 1  # ask before re-running sonce solved
+prompt_before_next = 1  # ask before re-running sonce solved #fixme use?
 SMALLSTEP = 4  # what our "local planner" can handle.
 
 XMAX = 1800
@@ -38,14 +38,17 @@ sigmay_for_randgen = YMAX / 2.0
 
 nodes = 0
 edges = 1
-maxvertex = 0
+maxvertex = 0 #fixme what is this used for?
 
 #FIXME CONSTANTS ADDED
-extension_step_size = 10
+extension_step_size = 5
 num_rrt_iterations = 3000
-x_variance = 220 #fixme #250 is good
-y_variance = 220
-
+x_variance = 250 #fixme #250 is good
+y_variance = 250
+count = 1 #used for genPoint() improvement
+improved = 0
+export = 1
+csv = 0
 
 def drawGraph(G):
     global vertices, nodes, edges   #todo why use global here?
@@ -59,16 +62,25 @@ def genPoint():
     # TODO : Function to implement the sampling technique
 
     # --- Unifrom Distribution
-    #x = random.uniform(0, XMAX)
-    #y = random.uniform(0, YMAX)
+    x = random.uniform(0, XMAX)
+    y = random.uniform(0, YMAX)
 
     # --- Gaussian distribution with mean at the goal
-    x = random.gauss(tx, x_variance)
-    y = random.gauss(ty, y_variance)
-    xu = max(min(x, XMAX), 0)
-    yu = max(min(y, YMAX), 0)
+    #x = random.gauss(tx, x_variance)
+    #y = random.gauss(ty, y_variance)
 
-    canvas.markit(x, y, 0, 0.1)
+    #fixme improvement by taking goal one out of 10 times
+    if (improved):
+        global count
+        count = count + 1
+
+        if (count % 10 == 0):
+            x = tx
+            y = ty
+
+    #fixme remove this output
+    if visualize:
+        canvas.markit(x, y, 0, 0.1)
     return [x, y]
 
 
@@ -111,11 +123,6 @@ def pointPointDistance(p1, p2):
     llsq = llsq + (h * h)
     return math.sqrt(llsq)
 
-    for i in range(len(p1)):  # each dimension, general case
-        h = p2[i] - p1[i]
-        llsq = llsq + (h * h)
-    return math.sqrt(llsq)
-
 
 def closestPointToPoint(G, p2):
     dmin = 999999999
@@ -132,7 +139,8 @@ def returnParent(k):
     """ Return parent node for input node k. """
     for e in G[edges]:
         if e[1] == k:
-            canvas.polyline([vertices[e[0]], vertices[e[1]]], style=3)
+            if visualize:
+                canvas.polyline([vertices[e[0]], vertices[e[1]]], style=3)
             return e[0]
 
 
@@ -200,53 +208,76 @@ def inRect(p, rect, dilation):
 # TODO: Implement the rrt_search algorithm in this function.
 def rrt_search(G, tx, ty):
 
-    #fixme implement wall hugging?
 
-    # Iterate given number of times
-    #for i in range(0, num_rrt_iterations):
-    # Step 1: generate random point
-    xrand = genPoint()
+    # Iterate until close enough to solution
+    dist = 100
+    num_rrt_iterations = 0;  # fixme change use of variable at start of script
+    drawGraph(G)
+    while (dist > SMALLSTEP):
+        num_rrt_iterations += 1
+        dist = pointPointDistance(vertices[closestPointToPoint(G, (tx, ty))], (tx, ty))
+        print dist
 
-    # Step 2: find nearest vertex in graph
-    xnearest = closestPointToPoint(G, xrand)
+        # Step 1: generate random point
+        xrand = genPoint()
 
-    # Step 3: steer towards it
-    nearestP = vertices[xnearest]
-    xnew = map( lambda pair: pair[0] + extension_step_size*pair[1], zip(nearestP, lineFromPoints(nearestP, xrand)))
+        # Step 2: find nearest vertex in graph
+        xnearest = closestPointToPoint(G, xrand)
 
-    # Step 4: only add it if it is obstacle free
-    collision = 0
-    for o in obstacles:
-        if lineHitsRect(nearestP, xnew, o):
-        #if inRect(xnew, o, 0.001): #fixme dilation? doesn't work, can skip over a rectangle!
-            collision = 1
+        # Step 3: steer towards it
+        nearestP = vertices[xnearest]
+        xnew = map( lambda pair: pair[0] + extension_step_size*pair[1], zip(nearestP, lineFromPoints(nearestP, xrand)))
 
-    # Step 5: add it to graph
-    if collision == 0 :
-        xnewIndex = pointToVertex(xnew)
-        G[nodes].append(xnewIndex)
-        G[edges].append((xnearest, xnewIndex))
+        #Step 4.1: only add if inside
+        dontAdd = 0
+        if (xnew[0] > XMAX or xnew[0] < 0 or xnew[1] > YMAX or xnew[1] < 0):
+            dontAdd = 1
+        # Step 4.2: only add it if it is obstacle free
+        for o in obstacles:
+            if lineHitsRect(nearestP, xnew, o):
+            #if inRect(xnew, o, 0.001): #fixme dilation? doesn't work, can skip over a rectangle!
+                #there is a collision!
+                dontAdd = 1
 
-    canvas.events()
-    # Step 6: add goal to graph fixme how and where?
-    #xnearest = closestPointToPoint(G, (tx, ty))
-    #nearestP = vertices[xnearest]
-    #xnew = (tx, ty)
-    #xnewIndex = pointToVertex(xnew)
-    #G[nodes].append(xnewIndex)
-    #G[edges].append((xnearest, xnewIndex))
-    return
+        # Step 5: add it to graph
+        if dontAdd == 0 :
+            xnewIndex = pointToVertex(xnew)
+            G[nodes].append(xnewIndex)
+            G[edges].append((xnearest, xnewIndex))
 
 
-# Implement the rrt_algorithm in this section of the code.
-# You should call genPoint() within this function to
-# get samples from different distributions.
+        # Step 6: visualize change
+        if visualize and dontAdd == 0:
+            canvas.polyline([vertices[xnearest], vertices[xnewIndex]])
+            canvas.events()
+
+    # Step 7: return number of iterations needed
+    return num_rrt_iterations
+
+#ADDITIONAL FUNCTION: retraces shortest path
+def retrace_shortest_path(G):
+    xnearest = closestPointToPoint(G, (tx, ty))
+    xnew = (tx, ty)
+    xnewIndex = pointToVertex(xnew)
+    G[nodes].append(xnewIndex)
+    G[edges].append((xnearest, xnewIndex))
+
+    node = len(vertices) - 1
+    rrt_path_length = 0
+
+    while (node != 0):
+        # print node
+        node = returnParent(node)
+        rrt_path_length += 1
+
+    return rrt_path_length
+
 
 if visualize:
     canvas = drawSample.SelectRect(xmin=0, ymin=0, xmax=XMAX, ymax=YMAX, nrects=0,
                                    keepcontrol=0)  # , rescale=800/1800.)
 
-if 0:  # line intersection testing fixme was 1
+if 0:  # line intersection testing
     obstacles.append([75, 60, 125, 500])  # tall vertical
     for o in obstacles: canvas.showRect(o, outline='red', fill='blue')
     lines = [
@@ -261,7 +292,7 @@ if 0:  # line intersection testing fixme was 1
             lineHitsRect(l[0], l[1], o)
     canvas.mainloop()
 
-if 1: #fixme was 0
+if 0: #fixme was 0
     # random obstacle field
     for nobst in range(0, 60): #fixme was 6000
         wall_discretization = SMALLSTEP * 2  # walls are on a regular grid.
@@ -294,54 +325,55 @@ if visualize:
     for o in obstacles: canvas.showRect(o, outline='red', fill='blue')
 
 maxvertex += 1
-if 1:   #fixme was while 1
-    # graph G
-    G = [[0], []]  # nodes, edges
-    vertices = [[10, 270], [20, 280]]
-    redraw()
+if export:
+    file = "point_robot.csv"  # where you want the file to be downloaded to
 
-    G[edges].append((0, 1))
-    G[nodes].append(1)
-    if visualize: canvas.markit(tx, ty, r=SMALLSTEP)
+    csv = open(file, "w")
 
-    drawGraph(G)
-    dist = 100
-    num_rrt_iterations = 0; #fixme change use of variable at start of script
-    while(dist > SMALLSTEP):
-        num_rrt_iterations += 1
-        dist = pointPointDistance(vertices[closestPointToPoint(G, (tx, ty))], (tx, ty))
-        print dist
-        rrt_search(G, tx, ty)
+    columnTitleRow = "step_size, num_rrt_iterations, rrt_path_length\n"
+    csv.write(columnTitleRow)
 
 
-    print "search over"
+for i in range(1, 15):   #fixme was while 1
+    extension_step_size = i
+    for j in range(0, 20):
 
-    # ADDITIONAL CODE fixme
-    # retrace shortest path
+        # graph G
+        G = [[0], []]  # nodes, edges
+        vertices = [[10, 270], [20, 280]]
+        if visualize:
+            redraw()
 
-    xnearest = closestPointToPoint(G, (tx, ty))
-    nearestP = vertices[xnearest]
-    xnew = (tx, ty)
-    xnewIndex = pointToVertex(xnew)
-    G[nodes].append(xnewIndex)
-    G[edges].append((xnearest, xnewIndex))
+        G[edges].append((0, 1))
+        G[nodes].append(1)
+        if visualize: canvas.markit(tx, ty, r=SMALLSTEP)
+
+        if visualize:
+            drawGraph(G)
+        num_rrt_iterations = rrt_search(G, tx, ty)
 
 
+        print "number of iterations: {}".format(num_rrt_iterations)
 
-    node = len(vertices) - 1
-    start = (start_x, start_y)
-    rrt_path_length = 0
+        # ADDITIONAL CODE
+        # retrace shortest path
+        rrt_path_length = retrace_shortest_path(G)
 
-    while(node != 0):
-        print node
-        node = returnParent(node)
-        rrt_path_length += 1
+        #if visualize:   #fixme is this call necessary?
+        #    drawGraph(G)
 
-    drawGraph(G)
-    print "rrt_path_size: {} extension_step_size: {}".format(rrt_path_length, extension_step_size)
-    print "total path length: {} shortest path: {}".format(rrt_path_length*extension_step_size, pointPointDistance((start_x, start_y), (tx, ty)))
-    #fixme distance is incorrect since first step is weird and last step too
+        if export:
+            row = "{},{},{}\n".format(extension_step_size, num_rrt_iterations, rrt_path_length)
+            csv.write(row)
 
+        # Uncommonet this to keep previous graphs displayed
+        canvas.delete()
+
+        print "rrt_path_size: {} extension_step_size: {}".format(rrt_path_length, extension_step_size)
+        print "total path length: {} shortest path: {}".format(rrt_path_length*extension_step_size, pointPointDistance((start_x, start_y), (tx, ty)))
+        #fixme distance is incorrect since first step is weird and last step too
+
+csv.close()
 # canvas.showRect(rect,fill='red')
 
 if visualize:

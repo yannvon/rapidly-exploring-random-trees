@@ -9,7 +9,7 @@ import imageToRects
 #display = drawSample.SelectRect(imfile=im2Small,keepcontrol=0,quitLabel="")
 
 visualize = 1
-prompt_before_next=1  # ask before re-running sonce solved
+prompt_before_next=1  # ask before re-running once solved
 SMALLSTEP = 4 # what our "local planner" can handle.
 
 XMAX=1800
@@ -235,6 +235,8 @@ while 1:
     G = [  [ 0 ]  , [] ]   # nodes, edges
     vertices = [ [10,270], [20,280]   ]
     redraw()
+
+    vertices[0]
 
     G[edges].append( (0,1) )
     G[nodes].append(1)
