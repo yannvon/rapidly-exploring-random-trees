@@ -15,7 +15,7 @@ import imageToRects
 
 visualize = 1
 prompt_before_next=1  # ask before re-running sonce solved
-SMALLSTEP = 4 # what our "local planner" can handle.
+SMALLSTEP = 10 # what our "local planner" can handle.
 
 XMAX=1800
 YMAX=1000
@@ -30,13 +30,15 @@ YMAX = s[1]
 
 
 # goal/target
-tx = 900
-ty = 300
+tx = 800
+ty = 150
+ta = 0
 # start
-start_x = 10
-start_y = 270
+start_x = 100
+start_y = 630
+start_a = 0
 
-vertices = [ [start_x,start_y] ]
+vertices = [[start_x,start_y]]
 
 sigmax_for_randgen = XMAX/2.0
 sigmay_for_randgen = YMAX/2.0
@@ -44,6 +46,16 @@ sigmay_for_randgen = YMAX/2.0
 nodes=0
 edges=1
 maxvertex = 0
+
+#CONSTANTS ADDED
+line_size = 50
+extension_step_size = 3
+# used to set to exporting mode
+export = 1
+csv = 0
+improved = 1
+count = 0
+
 
 def drawGraph(G):
     global vertices,nodes,edges
@@ -54,11 +66,17 @@ def drawGraph(G):
 
 
 def genPoint():
-    # TODO : Function to implement the sampling technique
     # Uniform distribution
-    #       OR
-    # Gaussian distribution with mean at the goal
-    return [x,y]
+    x = random.uniform(0, XMAX)
+    y = random.uniform(0, YMAX)
+    a = random.uniform(-math.pi, math.pi)
+    global count
+    if improved and count % 10 == 0:
+        count = 0
+        x = tx
+        y = ty
+    count += 1
+    return [x, y, a]
 
 def genvertex():
     vertices.append( genPoint() )
@@ -88,13 +106,6 @@ def lineFromPoints(p1,p2):
 def pointPointDistance(p1,p2):
     """ Return the distance between a pair of points (L2 norm). """
     llsq = 0.0 # line length squared
-    # faster, only for 2D
-    h = p2[0] - p1[0] 
-    llsq = llsq + (h*h)
-    h = p2[1] - p1[1] 
-    llsq = llsq + (h*h)
-    return math.sqrt(llsq)
-
     for i in range(len(p1)):  # each dimension, general case
         h = p2[i] - p1[i] 
         llsq = llsq + (h*h)
@@ -113,8 +124,13 @@ def closestPointToPoint(G,p2):
 def returnParent(k):
     """ Return parent note for input node k. """
     for e in G[edges]:
-        if e[1]==k: 
-            canvas.polyline(  [vertices[e[0]], vertices[e[1]] ], style=3  )
+        if e[1]==k:
+            #canvas.polyline(  [vertices[e[0]], vertices[e[1]] ], style=3  )
+            line = (line_size / 2 * math.cos(vertices[e[0]][2]), line_size / 2 * math.sin(vertices[e[0]][2]))
+            objectTail = (vertices[e[0]][0] - line[0], vertices[e[0]][1] - line[1])
+            objectHead = (vertices[e[0]][0] + line[0], vertices[e[0]][1] + line[1])
+
+            canvas.polyline([objectTail, objectHead], style=3 )
             return e[0]
 
 def pickGvertex():
@@ -171,12 +187,83 @@ def inRect(p,rect,dilation):
    if p[1]>rect[3]+dilation: return 0
    return 1
 
-#TODO: Implement the rrt_search algorithm in this function.
-def rrt_search(G, tx, ty):
-    # Implement the rrt_algorithm in this section of the code.
-    # You should call genPoint() within this function to 
-    #get samples from different distributions.
-    pass
+
+def rrt_search(G, tx, ty, ta):
+    # Iterate until close enough to solution
+    dist = SMALLSTEP + 1
+    num_rrt_iterations = 0;
+
+    while dist > SMALLSTEP:
+        num_rrt_iterations += 1
+        dist = pointPointDistance(vertices[closestPointToPoint(G, (tx, ty, ta))], (tx, ty, ta))
+        #print dist
+
+        # Step 1: generate random point
+        xrand = genPoint()
+
+        # Step 2: find nearest vertex in graph
+        xnearest = closestPointToPoint(G, xrand)
+
+        # Step 3: steer towards it
+        nearestP = vertices[xnearest]
+        xnew = []
+        vector = lineFromPoints(nearestP, xrand)
+        xnew.append(nearestP[0] + extension_step_size * vector[0])
+        xnew.append(nearestP[1] + extension_step_size * vector[1])
+        xnew.append((nearestP[2] + vector[2]) % math.pi) #fixme dont understand this.. do !
+
+        # Step 4.1: only add if inside
+        dontAdd = 0
+        if xnew[0] > XMAX or xnew[0] < 0 or xnew[1] > YMAX or xnew[1] < 0:
+            dontAdd = 1
+
+        # Step 4.2: only add it if it is obstacle free, but we only check endstate!
+        for o in obstacles:
+            line = (line_size/2*math.cos(xnew[2]), line_size/2*math.sin(xnew[2]))
+            objectTail = (xnew[0] - line[0], xnew[1] - line[1])
+            objectHead = (xnew[0] + line[0], xnew[1] + line[1])
+            # this check is not really enough, but we suppose that our small movements are small enough
+
+            if lineHitsRect(objectTail, objectHead, o) \
+                    or inRect(objectHead, o, 0.01) \
+                    or inRect(objectTail, o, 0.01):
+                # there is a collision!
+                dontAdd = 1
+
+        # Step 5: add it to graph
+        if dontAdd == 0:
+            xnewIndex = pointToVertex(xnew)
+            G[nodes].append(xnewIndex)
+            G[edges].append((xnearest, xnewIndex))
+
+        # Step 6: visualize change
+        if visualize and dontAdd == 0:
+            canvas.polyline([objectTail, objectHead])
+            canvas.polyline([vertices[xnearest], vertices[xnewIndex]]) #fixme why does this work? should it not be 2D?
+            canvas.events()
+
+    # Step 7: return number of iterations needed
+    return num_rrt_iterations
+
+
+#ADDITIONAL FUNCTION: retraces shortest path
+def retrace_shortest_path(G):
+    xnearest = closestPointToPoint(G, (tx, ty, ta))
+    xnew = (tx, ty, ta)
+    xnewIndex = pointToVertex(xnew)
+    G[nodes].append(xnewIndex)
+    G[edges].append((xnearest, xnewIndex))
+
+    node = len(vertices) - 1
+    rrt_path_length = 0
+
+    while node != 0:
+        # print node
+        node = returnParent(node)
+        rrt_path_length += 1
+
+    return rrt_path_length
+
 
 if visualize:
     canvas = drawSample.SelectRect(xmin=0,ymin=0,xmax=XMAX ,ymax=YMAX, nrects=0, keepcontrol=0)#, rescale=800/1800.)
@@ -236,18 +323,50 @@ if visualize:
 
 maxvertex += 1
 
+if export:
+    file = "line_robot.csv"  # where you want the file to be downloaded to
+
+    csv = open(file, "w")
+
+    columnTitleRow = "step_size, line_size, num_rrt_iterations, rrt_path_length\n" #fixme
+    csv.write(columnTitleRow)
+
+
 while 1:
+    #change line_size from 25 to 75
+    line_size += 5
+    if line_size > 75:
+        line_size = 25
     # graph G
-    G = [  [ 0 ]  , [] ]   # nodes, edges
-    vertices = [ [10,270], [20,280]   ]
+    G = [[0], []]   # nodes, edges
+    vertices = [[start_x, start_y, start_a]] #fixme
     redraw()
 
-    G[edges].append( (0,1) )
-    G[nodes].append(1)
-    if visualize: canvas.markit( tx, ty, r=SMALLSTEP )
+    if visualize:
+        canvas.markit( tx, ty, r=SMALLSTEP )
+        drawGraph(G)
 
-    drawGraph(G)
-    rrt_search(G, tx, ty)
+    num_rrt_iterations = rrt_search(G, tx, ty, ta)
+    print "number of iterations: {}".format(num_rrt_iterations)
+
+    # ADDITIONAL CODE
+    # retrace shortest path
+    rrt_path_length = retrace_shortest_path(G)
+
+    #export into csv file for conveniance
+    if export:
+        row = "{},{},{},{}\n".format(extension_step_size, line_size, num_rrt_iterations, rrt_path_length)
+        csv.write(row)
+
+    # comment this to keep previous graphs displayed
+    #canvas.delete()
+
+    print "rrt_path_size: {} extension_step_size: {}".format(rrt_path_length, extension_step_size)
+    print "total path length: {} shortest path: {}".format(rrt_path_length*extension_step_size, pointPointDistance((start_x, start_y), (tx, ty)))
+
+
+csv.close()
+
 
 #canvas.showRect(rect,fill='red')
 

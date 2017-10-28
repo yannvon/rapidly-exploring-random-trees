@@ -42,7 +42,7 @@ maxvertex = 0 #fixme what is this used for?
 
 #FIXME CONSTANTS ADDED
 extension_step_size = 5
-num_rrt_iterations = 3000
+num_rrt_iterations = 0
 x_variance = 250 #fixme #250 is good
 y_variance = 250
 count = 1 #used for genPoint() improvement
@@ -212,7 +212,7 @@ def rrt_search(G, tx, ty):
     # Iterate until close enough to solution
     dist = 100
     num_rrt_iterations = 0;  # fixme change use of variable at start of script
-    drawGraph(G)
+    drawGraph(G) #fixme remove?
     while (dist > SMALLSTEP):
         num_rrt_iterations += 1
         dist = pointPointDistance(vertices[closestPointToPoint(G, (tx, ty))], (tx, ty))
@@ -340,38 +340,33 @@ for i in range(1, 15):   #fixme was while 1
 
         # graph G
         G = [[0], []]  # nodes, edges
-        vertices = [[10, 270], [20, 280]]
+        vertices = [[start_x, start_y]]
         if visualize:
             redraw()
+            canvas.markit(tx, ty, r=SMALLSTEP)
+            drawGraph(G) #fixme
 
-        G[edges].append((0, 1))
-        G[nodes].append(1)
-        if visualize: canvas.markit(tx, ty, r=SMALLSTEP)
 
-        if visualize:
-            drawGraph(G)
+        # run search
         num_rrt_iterations = rrt_search(G, tx, ty)
-
-
         print "number of iterations: {}".format(num_rrt_iterations)
+
 
         # ADDITIONAL CODE
         # retrace shortest path
         rrt_path_length = retrace_shortest_path(G)
 
-        #if visualize:   #fixme is this call necessary?
-        #    drawGraph(G)
 
+        #export into csv file for conveniance
         if export:
             row = "{},{},{}\n".format(extension_step_size, num_rrt_iterations, rrt_path_length)
             csv.write(row)
 
-        # Uncommonet this to keep previous graphs displayed
+        # comment this to keep previous graphs displayed
         canvas.delete()
 
         print "rrt_path_size: {} extension_step_size: {}".format(rrt_path_length, extension_step_size)
         print "total path length: {} shortest path: {}".format(rrt_path_length*extension_step_size, pointPointDistance((start_x, start_y), (tx, ty)))
-        #fixme distance is incorrect since first step is weird and last step too
 
 csv.close()
 # canvas.showRect(rect,fill='red')
