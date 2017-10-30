@@ -218,13 +218,13 @@ def rrt_search(G, tx, ty):
 
         # Step 4.1: only add if inside
         dontAdd = 0
-        if xnew[0] > XMAX - 1 or xnew[0] < 1 or xnew[1] > YMAX - 1 or xnew[1] < 1: #add some margin
+        if xnew[0] > XMAX - 1 or xnew[0] < 1 or xnew[1] > YMAX - 1 or xnew[1] < 1: #I added some margin on the borders
             dontAdd = 1
         # Step 4.2: only add it if it is obstacle free
         else:
             for o in obstacles:
                 if inRect(xnew, o, 0.5) and \
-                        lineHitsRect(closestP, xnew, o): #fixme dilation? doesn't work, can skip over a rectangle!
+                        lineHitsRect(closestP, xnew, o):
                     # There is a collision!
                     dontAdd = 1
                     break
@@ -369,6 +369,7 @@ for i in range(5, 17):
 
 if export:
     csv.close()
+
 # canvas.showRect(rect,fill='red')
 
 if visualize:
