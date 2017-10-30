@@ -171,6 +171,7 @@ def rrt_search(G, tx, ty):
     # Implement the rrt_algorithm in this section of the code.
     # You should call genPoint() within this function to 
     #get samples from different distributions.
+    pass
 
 if visualize:
     canvas = drawSample.SelectRect(xmin=0,ymin=0,xmax=XMAX ,ymax=YMAX, nrects=0, keepcontrol=0)#, rescale=800/1800.)

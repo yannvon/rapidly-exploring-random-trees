@@ -264,6 +264,7 @@ class SelectRect:
          elif style==2: self.canvas.create_line(ip,fill='blue', width=2, tags=tags)
          elif style==3: self.canvas.create_line(ip,fill='black', width=3, tags=tags)
          elif style==4: self.canvas.create_line(ip,fill='yellow', width=3, tags=tags)
+         elif style==5: self.canvas.create_line(ip,fill='red', width=4, tags=tags)
          
     def released(self,filename):
         if self.drawn: 
